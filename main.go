@@ -7,7 +7,8 @@ import (
 	"github.com/sauravdhaka/dist-file-system/p2p"
 )
 
-func Onpeer(p p2p.Peer) error {
+func Onpeer(peer p2p.Peer) error {
+	peer.Close()
 	fmt.Println("doing some logic outdide tcp transport")
 	return nil
 }
