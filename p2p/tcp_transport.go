@@ -24,8 +24,20 @@ func NewTCPPeer(conn net.Conn, outbound bool) *TCPPeer {
 }
 
 // Close implemets the peer interface
+// Return the remote address of its underlying connection.
 func (p *TCPPeer) Close() error {
 	return p.conn.Close()
+}
+
+// RemoteAddr implemets the peer interface
+// Return the remote address of its underlying connection.
+func (p *TCPPeer) RemoteAddr() net.Addr {
+	return p.conn.RemoteAddr()
+}
+
+func (p *TCPPeer) Send(b []byte) error {
+	_, err := p.conn.Write(b)
+	return err
 }
 
 type TCPTransportOpts struct {
@@ -59,6 +71,19 @@ func (t *TCPTransport) Close() error {
 	return t.listener.Close()
 }
 
+// Dail implements the Transport Interface
+func (t *TCPTransport) Dail(addr string) error {
+	conn, err := net.Dial("tcp", addr)
+
+	if err != nil {
+		return err
+	}
+
+	go t.handleConn(conn, true)
+
+	return nil
+}
+
 func (t *TCPTransport) ListenAndAccept() error {
 	var err error
 
@@ -79,27 +104,27 @@ func (t *TCPTransport) ListenAndAccept() error {
 func (t *TCPTransport) startAcceptLoop() {
 	for {
 		conn, err := t.listener.Accept()
-		if errors.Is(err , net.ErrClosed){
+		if errors.Is(err, net.ErrClosed) {
 			return
 		}
 		if err != nil {
 			fmt.Printf("TCP accept error: %s\n", err)
 		}
 		fmt.Printf("new incoming connection %+v\n", conn)
-		go t.handleConn(conn)
+		go t.handleConn(conn, false)
 
 	}
 }
 
 type Temp struct{}
 
-func (t *TCPTransport) handleConn(conn net.Conn) {
+func (t *TCPTransport) handleConn(conn net.Conn, outbound bool) {
 	var err error
 	defer func() {
 		fmt.Printf("dropping peer connection: %s", err)
 		conn.Close()
 	}()
-	peer := NewTCPPeer(conn, true)
+	peer := NewTCPPeer(conn, outbound)
 
 	if err = t.HandshakeFunc(peer); err != nil {
 		return
